@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import SidePanel, { AnalysisResult } from '@/components/SidePanel';
-import PDFReader from '@/components/PDFReader';
+import dynamic from 'next/dynamic';
 import { useLanguage } from '@/context/LanguageContext';
+
+const PDFReader = dynamic(() => import('@/components/PDFReader'), { ssr: false });
 
 export default function Home() {
   const { language } = useLanguage();
