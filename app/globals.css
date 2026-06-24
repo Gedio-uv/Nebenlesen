@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-brand-teal: #06B6D4;
+  --color-brand-indigo: #6366F1;
+  --color-brand-purple: #8B5CF6;
+  --color-bg-dark: #0B0F19;
+  --color-panel-glass: rgba(17, 24, 39, 0.75);
+  --color-panel-border: rgba(255, 255, 255, 0.08);
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  
+  /* Animations */
+  --animate-fade-in: fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --animate-slide-in: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: var(--color-bg-dark);
+    --foreground: var(--color-text-primary);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    /* Soft dark gradient background */
+    background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                      radial-gradient(circle at bottom left, rgba(6, 182, 212, 0.1) 0%, transparent 40%);
+    background-attachment: fixed;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .glass-panel {
+    background-color: var(--color-panel-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-panel-border);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  }
+  
+  .glass-card {
+    background-color: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 0.75rem;
+  }
+
+  .text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(to right, var(--color-brand-teal), var(--color-brand-indigo));
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Default selection for the UI */
+::selection {
+  background: rgba(6, 182, 212, 0.3);
+  color: #fff;
+}
+
+/* PDF text layer selection fix to prevent "double highlight" */
+.react-pdf__Page__textContent ::selection {
+  background: rgba(6, 182, 212, 0.3);
+  color: transparent;
 }
