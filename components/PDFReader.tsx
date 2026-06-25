@@ -21,6 +21,7 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
   const [scale, setScale] = useState<number>(1);
   const [containerWidth, setContainerWidth] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastEmittedText = useRef<string>('');
 
   // Resize observer to handle dynamic PDF scaling
   useEffect(() => {
@@ -37,6 +38,34 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
     return () => observer.disconnect();
   }, []);
 
+  // Global selection change listener for cross-device support (Desktop, iPad, Mobile)
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    const handleSelectionChange = () => {
+      clearTimeout(timeoutId);
+      // Debounce the selection to avoid triggering while the user is still dragging
+      timeoutId = setTimeout(() => {
+        const selection = window.getSelection();
+        if (selection) {
+          const text = selection.toString().trim();
+          // Only trigger if we have text and it's different from the last selection
+          // This prevents duplicate API calls
+          if (text.length > 0 && text !== lastEmittedText.current) {
+            lastEmittedText.current = text;
+            onTextSelected(text);
+          }
+        }
+      }, 600);
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      clearTimeout(timeoutId);
+    };
+  }, [onTextSelected]);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile && selectedFile.type === 'application/pdf') {
@@ -48,19 +77,6 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
 
   const handleDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
-  };
-
-  const handleMouseUp = () => {
-    // A small delay ensures the browser has fully updated the selection boundary
-    setTimeout(() => {
-      const selection = window.getSelection();
-      if (selection) {
-        const text = selection.toString().trim();
-        if (text.length > 0) {
-          onTextSelected(text);
-        }
-      }
-    }, 150);
   };
 
   if (!file) {
@@ -137,7 +153,6 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
       {/* PDF Viewport */}
       <div 
         className="flex-1 overflow-auto bg-[#e5e5e5] dark:bg-[#1f2937] p-4 sm:p-8"
-        onMouseUp={handleMouseUp}
       >
         <div className="flex flex-col items-center gap-6">
           <Document
