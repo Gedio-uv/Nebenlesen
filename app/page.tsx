@@ -35,15 +35,18 @@ export default function Home() {
           body: formData,
         });
         
-        if (!response.ok) throw new Error('Extraction failed');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Extraction failed');
+        }
         
         const data = await response.json();
         if (data.blocks) {
           setBlocks(data.blocks);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
-        alert('Failed to extract PDF text.');
+        alert(`Failed to extract PDF text: ${err.message || 'Unknown error'}`);
       } finally {
         setIsExtracting(false);
       }
