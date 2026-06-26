@@ -15,9 +15,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 interface PDFReaderProps {
   onTextSelected: (text: string) => void;
   onViewModeChange: (mode: 'reader' | 'vocabulary') => void;
+  onFileLoad: () => void;
 }
 
-export default function PDFReader({ onTextSelected, onViewModeChange }: PDFReaderProps) {
+export default function PDFReader({ onTextSelected, onViewModeChange, onFileLoad }: PDFReaderProps) {
   const { language, setLanguage, t } = useLanguage();
   const { user, signInWithGoogle, signOut } = useAuth();
   const [file, setFile] = useState<File | null>(null);
@@ -78,6 +79,7 @@ export default function PDFReader({ onTextSelected, onViewModeChange }: PDFReade
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
+      onFileLoad(); // Tell the parent to open the SidePanel
     }
   }
 

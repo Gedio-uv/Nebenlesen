@@ -65,7 +65,7 @@ export default function Home() {
       >
         {mounted && (
           viewMode === 'reader' 
-            ? <PDFReader onTextSelected={handleTextSelected} onViewModeChange={setViewMode} />
+            ? <PDFReader onTextSelected={handleTextSelected} onViewModeChange={setViewMode} onFileLoad={() => setIsPanelOpen(true)} />
             : <VocabularyList onViewModeChange={setViewMode} />
         )}
       </div>
