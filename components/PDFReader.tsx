@@ -120,11 +120,27 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
         }
       );
 
-      // Extract words and their bounding boxes
-      const words = (result.data as any).words.map((w: any) => ({
-        text: w.text,
-        bbox: w.bbox
-      }));
+      // Extract words and their bounding boxes from blocks (Tesseract v5 structure)
+      const words: any[] = [];
+      if (result.data.blocks) {
+        result.data.blocks.forEach((block: any) => {
+          if (block.paragraphs) {
+            block.paragraphs.forEach((paragraph: any) => {
+              if (paragraph.lines) {
+                paragraph.lines.forEach((line: any) => {
+                  if (line.words) {
+                    line.words.forEach((w: any) => {
+                      if (w.text && w.text.trim().length > 0) {
+                        words.push({ text: w.text, bbox: w.bbox });
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
       
       setOcrWords(words);
     } catch (error) {
