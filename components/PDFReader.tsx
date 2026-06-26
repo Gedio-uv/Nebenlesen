@@ -20,7 +20,25 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
   const [numPages, setNumPages] = useState<number>(1);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
+  const [containerWidth, setContainerWidth] = useState<number>();
+  const containerRef = useRef<HTMLDivElement>(null);
   const lastEmittedText = useRef<string>('');
+
+  // Measure container width for responsive PDF sizing
+  useEffect(() => {
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        // Subtract 64px for the p-8 (32px) padding on each side
+        setContainerWidth(entry.contentRect.width - 64);
+      }
+    });
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   // iOS Safari touch selection fix
   useEffect(() => {
@@ -121,7 +139,10 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-auto flex items-start justify-center p-8 bg-[var(--color-bg-dark)]">
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-auto flex items-start justify-center p-8 bg-[var(--color-bg-dark)]"
+      >
         {!file ? (
           <label className="glass-card flex flex-col items-center justify-center w-full max-w-lg h-64 border-2 border-dashed border-[var(--color-brand-indigo)] border-opacity-50 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer group mt-20">
             <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
@@ -145,7 +166,8 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
             >
               <Page 
                 pageNumber={pageNumber} 
-                scale={scale} 
+                width={containerWidth ? containerWidth * scale : undefined}
+                scale={containerWidth ? 1 : scale} 
                 renderTextLayer={true}
                 renderAnnotationLayer={true}
                 className="select-text"
@@ -155,10 +177,10 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
             {/* Global style overrides for the react-pdf text layer to improve selection visibility */}
             <style jsx global>{`
               .react-pdf__Page__textContent {
-                opacity: 0.2; /* slightly visible for debugging if needed, but react-pdf handles it */
+                opacity: 0.2;
               }
               .react-pdf__Page__textContent ::selection {
-                background: rgba(45, 212, 191, 0.4);
+                background: rgba(253, 224, 71, 0.6); /* Noticeable bright yellow */
                 color: transparent;
               }
             `}</style>
