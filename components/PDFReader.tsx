@@ -108,19 +108,21 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
     try {
       const Tesseract = (await import('tesseract.js')).default;
       
-      const result = await Tesseract.recognize(
-        canvas,
-        'deu', // German language model
-        { 
-          logger: m => {
-            if (m.status === 'recognizing text') {
-              setOcrProgress(Math.round(m.progress * 100));
-            }
-          } 
+      const worker = await Tesseract.createWorker('deu', 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            setOcrProgress(Math.round(m.progress * 100));
+          }
         }
+      });
+      
+      const result = await worker.recognize(
+        canvas,
+        {},
+        { blocks: true }
       );
 
-      // Extract words and their bounding boxes from blocks (Tesseract v5 structure)
+      // Extract words and their bounding boxes from blocks (Tesseract v5+ structure)
       const words: any[] = [];
       if (result.data.blocks) {
         result.data.blocks.forEach((block: any) => {
@@ -142,6 +144,7 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
         });
       }
       
+      await worker.terminate();
       setOcrWords(words);
     } catch (error) {
       console.error('OCR Error:', error);
