@@ -7,13 +7,18 @@ import { useLanguage } from '@/context/LanguageContext';
 
 const PDFReader = dynamic(() => import('@/components/PDFReader'), { ssr: false });
 
+import VocabularyList from '@/components/VocabularyList';
+
 export default function Home() {
   const { language } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [selectedText, setSelectedText] = useState<string>('');
-  const [isPanelOpen, setIsPanelOpen] = useState<boolean>(true);
+  const [isPanelOpen, setIsPanelOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  
+  // 'reader' | 'vocabulary'
+  const [viewMode, setViewMode] = useState<'reader' | 'vocabulary'>('reader');
 
   useEffect(() => {
     setMounted(true);
@@ -58,7 +63,11 @@ export default function Home() {
           isPanelOpen ? 'lg:mr-[400px] xl:mr-[450px]' : ''
         }`}
       >
-        {mounted && <PDFReader onTextSelected={handleTextSelected} />}
+        {mounted && (
+          viewMode === 'reader' 
+            ? <PDFReader onTextSelected={handleTextSelected} onViewModeChange={setViewMode} />
+            : <VocabularyList onViewModeChange={setViewMode} />
+        )}
       </div>
 
       {/* Side Panel Area */}

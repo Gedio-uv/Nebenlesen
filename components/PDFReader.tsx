@@ -6,16 +6,20 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { UploadCloud, ZoomIn, ZoomOut } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuth } from '@/context/AuthContext';
+import { BookMarked, LogOut } from 'lucide-react';
 
 // Initialize PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PDFReaderProps {
   onTextSelected: (text: string) => void;
+  onViewModeChange: (mode: 'reader' | 'vocabulary') => void;
 }
 
-export default function PDFReader({ onTextSelected }: PDFReaderProps) {
+export default function PDFReader({ onTextSelected, onViewModeChange }: PDFReaderProps) {
   const { language, setLanguage, t } = useLanguage();
+  const { user, signInWithGoogle, signOut } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.0);
@@ -129,12 +133,43 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
         </div>
         
         <div className="flex items-center gap-4">
+          {file && (
+            <button 
+              onClick={() => onViewModeChange('vocabulary')}
+              className="px-3 py-1.5 text-sm font-medium rounded text-[var(--color-brand-teal)] hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2"
+            >
+              <BookMarked size={16} /> My Vocabulary
+            </button>
+          )}
+          
+          <div className="w-px h-6 bg-[var(--color-panel-border)]"></div>
+          
           <button 
             onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
             className="text-[var(--color-brand-teal)] hover:text-white px-3 py-1 glass-card rounded-md cursor-pointer text-sm font-medium"
           >
             {language === 'en' ? '中文' : 'English'}
           </button>
+
+          {user ? (
+            <div className="flex items-center gap-3 ml-2">
+              <img src={user.photoURL || ''} alt="Profile" className="w-8 h-8 rounded-full border border-[var(--color-panel-border)]" />
+              <button 
+                onClick={signOut}
+                title="Sign out"
+                className="p-2 rounded text-[var(--color-text-secondary)] hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={signInWithGoogle}
+              className="px-4 py-1.5 text-sm font-semibold rounded bg-white text-black hover:bg-gray-200 transition-colors ml-2"
+            >
+              Sign in
+            </button>
+          )}
         </div>
       </div>
 
