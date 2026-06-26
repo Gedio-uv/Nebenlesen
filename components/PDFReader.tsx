@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import { UploadCloud, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
+import { UploadCloud, ZoomIn, ZoomOut } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
 // Initialize PDF.js worker
@@ -17,18 +17,12 @@ interface PDFReaderProps {
 export default function PDFReader({ onTextSelected }: PDFReaderProps) {
   const { language, setLanguage, t } = useLanguage();
   const [file, setFile] = useState<File | null>(null);
-  const [numPages, setNumPages] = useState<number>(1);
-  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.0);
   const [containerWidth, setContainerWidth] = useState<number>();
   const containerRef = useRef<HTMLDivElement>(null);
   const lastEmittedText = useRef<string>('');
   
-  // OCR State
-  const [isOcrRunning, setIsOcrRunning] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
-  const [ocrWords, setOcrWords] = useState<any[]>([]);
-
   // Measure container width for responsive PDF sizing
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -44,11 +38,6 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
 
     return () => observer.disconnect();
   }, []);
-
-  // Reset OCR when page changes
-  useEffect(() => {
-    setOcrWords([]);
-  }, [pageNumber, file]);
 
   // iOS Safari touch selection fix
   useEffect(() => {
@@ -85,7 +74,6 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      setPageNumber(1);
     }
   }
 
@@ -93,64 +81,19 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
     setNumPages(numPages);
   }
 
-  const runOCR = async () => {
-    // Find the canvas rendered by react-pdf
-    const canvas = document.querySelector('.react-pdf__Page__canvas') as HTMLCanvasElement;
-    if (!canvas) {
-      alert('Could not find the PDF canvas. Please wait for it to load completely.');
-      return;
-    }
-
-    setIsOcrRunning(true);
-    setOcrProgress(0);
-    setOcrWords([]);
-
-    try {
-      const Tesseract = (await import('tesseract.js')).default;
-      
-      const worker = await Tesseract.createWorker('deu', 1, {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            setOcrProgress(Math.round(m.progress * 100));
-          }
+  const onPageLoadSuccess = async (page: any) => {
+    // Only check the first page to determine if it's a scanned PDF
+    if (page.pageNumber === 1) {
+      try {
+        const textContent = await page.getTextContent();
+        if (!textContent || textContent.items.length === 0) {
+          alert('This PDF appears to be a scanned image without readable text. Please upload a standard text-based PDF for translation to work.');
+          setFile(null);
+          setNumPages(0);
         }
-      });
-      
-      const result = await worker.recognize(
-        canvas,
-        {},
-        { blocks: true }
-      );
-
-      // Extract words and their bounding boxes from blocks (Tesseract v5+ structure)
-      const words: any[] = [];
-      if (result.data.blocks) {
-        result.data.blocks.forEach((block: any) => {
-          if (block.paragraphs) {
-            block.paragraphs.forEach((paragraph: any) => {
-              if (paragraph.lines) {
-                paragraph.lines.forEach((line: any) => {
-                  if (line.words) {
-                    line.words.forEach((w: any) => {
-                      if (w.text && w.text.trim().length > 0) {
-                        words.push({ text: w.text, bbox: w.bbox });
-                      }
-                    });
-                  }
-                });
-              }
-            });
-          }
-        });
+      } catch (e) {
+        console.error('Error reading PDF text:', e);
       }
-      
-      await worker.terminate();
-      setOcrWords(words);
-    } catch (error) {
-      console.error('OCR Error:', error);
-      alert('Failed to run OCR. See console for details.');
-    } finally {
-      setIsOcrRunning(false);
     }
   };
 
@@ -159,54 +102,29 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
       {/* Top Toolbar */}
       <div className="glass-panel rounded-none border-t-0 border-l-0 border-r-0 border-b border-[var(--color-panel-border)] p-4 flex items-center justify-between z-10 shrink-0 bg-black/40 backdrop-blur-md">
         <div className="flex items-center gap-4">
-          <div className="font-bold text-xl text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-brand-teal)] to-[var(--color-brand-indigo)] tracking-tight">
+          <div 
+            onClick={() => { setFile(null); setNumPages(0); }}
+            title="Upload a different file"
+            className="font-bold text-xl text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-brand-teal)] to-[var(--color-brand-indigo)] tracking-tight cursor-pointer hover:opacity-80 transition-opacity"
+          >
             Nebenlesen
           </div>
-          <div className="w-px h-6 bg-[var(--color-panel-border)]"></div>
           
           {file && (
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                disabled={pageNumber <= 1 || isOcrRunning}
-                className="p-1 rounded hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent text-[var(--color-text-secondary)] hover:text-white transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <span className="text-sm font-medium text-[var(--color-text-secondary)] min-w-[3rem] text-center">
-                {pageNumber} / {numPages}
-              </span>
-              <button 
-                onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                disabled={pageNumber >= numPages || isOcrRunning}
-                className="p-1 rounded hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent text-[var(--color-text-secondary)] hover:text-white transition-colors"
-              >
-                <ChevronRight size={20} />
-              </button>
-              
-              <div className="w-px h-6 bg-[var(--color-panel-border)] mx-2"></div>
-              
-              <button onClick={() => setScale(s => Math.max(0.5, s - 0.25))} disabled={isOcrRunning} className="p-1 rounded hover:bg-white/10 disabled:opacity-30 text-[var(--color-text-secondary)] hover:text-white transition-colors">
-                <ZoomOut size={18} />
-              </button>
-              <span className="text-xs font-medium text-[var(--color-text-secondary)] min-w-[3rem] text-center">
-                {Math.round(scale * 100)}%
-              </span>
-              <button onClick={() => setScale(s => Math.min(3, s + 0.25))} disabled={isOcrRunning} className="p-1 rounded hover:bg-white/10 disabled:opacity-30 text-[var(--color-text-secondary)] hover:text-white transition-colors">
-                <ZoomIn size={18} />
-              </button>
-
-              <div className="w-px h-6 bg-[var(--color-panel-border)] mx-2"></div>
-              
-              {/* OCR Button */}
-              <button 
-                onClick={runOCR}
-                disabled={isOcrRunning || ocrWords.length > 0}
-                className="px-3 py-1.5 text-xs font-semibold rounded bg-[var(--color-brand-indigo)] hover:bg-[var(--color-brand-teal)] text-white disabled:opacity-50 disabled:bg-neutral-600 transition-colors flex items-center gap-2"
-              >
-                {isOcrRunning ? `Scanning... ${ocrProgress}%` : ocrWords.length > 0 ? 'OCR Active' : 'Scan Text (OCR)'}
-              </button>
-            </div>
+            <>
+              <div className="w-px h-6 bg-[var(--color-panel-border)]"></div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setScale(s => Math.max(0.5, s - 0.25))} className="p-1 rounded hover:bg-white/10 text-[var(--color-text-secondary)] hover:text-white transition-colors">
+                  <ZoomOut size={18} />
+                </button>
+                <span className="text-xs font-medium text-[var(--color-text-secondary)] min-w-[3rem] text-center">
+                  {Math.round(scale * 100)}%
+                </span>
+                <button onClick={() => setScale(s => Math.min(3, s + 0.25))} className="p-1 rounded hover:bg-white/10 text-[var(--color-text-secondary)] hover:text-white transition-colors">
+                  <ZoomIn size={18} />
+                </button>
+              </div>
+            </>
           )}
         </div>
         
@@ -240,44 +158,26 @@ export default function PDFReader({ onTextSelected }: PDFReaderProps) {
             />
           </label>
         ) : (
-          <div className="relative shadow-2xl rounded-sm overflow-hidden bg-white mb-20 pdf-container">
+          <div className="flex flex-col items-center w-full pb-20">
             <Document
               file={file}
               onLoadSuccess={onDocumentLoadSuccess}
-              loading={<div className="p-20 text-black">{t.loadingPdf}</div>}
+              loading={<div className="p-20 text-white">{t.loadingPdf}</div>}
+              className="flex flex-col items-center gap-8 w-full"
             >
-              <div className="relative">
-                <Page 
-                  pageNumber={pageNumber} 
-                  width={containerWidth ? containerWidth * scale : undefined}
-                  scale={containerWidth ? 1 : scale} 
-                  renderTextLayer={true}
-                  renderAnnotationLayer={true}
-                  className="select-text"
-                />
-                
-                {/* Artificial OCR Text Layer overlay */}
-                {ocrWords.length > 0 && (
-                  <div className="absolute top-0 left-0 w-full h-full pointer-events-auto select-text" style={{ zIndex: 10 }}>
-                    {ocrWords.map((word, i) => (
-                      <span 
-                        key={i}
-                        className="absolute text-transparent select-text"
-                        style={{
-                          left: `${word.bbox.x0}px`,
-                          top: `${word.bbox.y0}px`,
-                          width: `${word.bbox.x1 - word.bbox.x0}px`,
-                          height: `${word.bbox.y1 - word.bbox.y0}px`,
-                          lineHeight: `${word.bbox.y1 - word.bbox.y0}px`,
-                          fontSize: `${word.bbox.y1 - word.bbox.y0}px`,
-                        }}
-                      >
-                        {word.text}{' '}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {Array.from(new Array(numPages), (el, index) => (
+                <div key={`page_${index + 1}`} className="relative shadow-2xl rounded-sm overflow-hidden bg-white pdf-container">
+                  <Page 
+                    pageNumber={index + 1} 
+                    width={containerWidth ? containerWidth * scale : undefined}
+                    scale={containerWidth ? 1 : scale} 
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                    className="select-text"
+                    onLoadSuccess={index === 0 ? onPageLoadSuccess : undefined}
+                  />
+                </div>
+              ))}
             </Document>
             
             {/* Global style overrides for the react-pdf text layer to improve selection visibility */}
