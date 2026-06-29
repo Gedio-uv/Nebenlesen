@@ -8,6 +8,7 @@ import { UploadCloud, ZoomIn, ZoomOut } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
 import { BookMarked, LogOut } from 'lucide-react';
+import DrivePicker from './DrivePicker';
 
 // Initialize PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -81,6 +82,11 @@ export default function PDFReader({ onTextSelected, onViewModeChange, onFileLoad
       setFile(selectedFile);
       onFileLoad(); // Tell the parent to open the SidePanel
     }
+  }
+
+  function handleDriveFileLoaded(driveFile: File) {
+    setFile(driveFile);
+    onFileLoad(); // Tell the parent to open the SidePanel
   }
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
@@ -181,19 +187,24 @@ export default function PDFReader({ onTextSelected, onViewModeChange, onFileLoad
         className="flex-1 overflow-auto flex items-start justify-center p-8 bg-[var(--color-bg-dark)] relative"
       >
         {!file ? (
-          <label className="glass-card flex flex-col items-center justify-center w-full max-w-lg h-64 border-2 border-dashed border-[var(--color-brand-indigo)] border-opacity-50 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer group mt-20">
-            <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
-              <UploadCloud size={48} className="text-[var(--color-brand-teal)] mb-4 group-hover:scale-110 transition-transform" />
-              <p className="mb-2 text-lg font-semibold text-[var(--color-text-primary)]">{t.uploadTitle}</p>
-              <p className="text-sm text-[var(--color-text-secondary)]">{t.uploadSubtitle}</p>
+          <div className="flex flex-col gap-4 mt-20">
+            <label className="glass-card flex flex-col items-center justify-center w-full max-w-lg h-64 border-2 border-dashed border-[var(--color-brand-indigo)] border-opacity-50 hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer group">
+              <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center">
+                <UploadCloud size={48} className="text-[var(--color-brand-teal)] mb-4 group-hover:scale-110 transition-transform" />
+                <p className="mb-2 text-lg font-semibold text-[var(--color-text-primary)]">{t.uploadTitle}</p>
+                <p className="text-sm text-[var(--color-text-secondary)]">{t.uploadSubtitle}</p>
+              </div>
+              <input 
+                type="file" 
+                className="hidden" 
+                accept="application/pdf"
+                onChange={onFileChange}
+              />
+            </label>
+            <div className="flex justify-center">
+              <DrivePicker onFileLoaded={handleDriveFileLoaded} />
             </div>
-            <input 
-              type="file" 
-              className="hidden" 
-              accept="application/pdf"
-              onChange={onFileChange}
-            />
-          </label>
+          </div>
         ) : (
           <div className="flex flex-col items-center w-full pb-20">
             <Document
